@@ -37,9 +37,9 @@
         $return[$i]['supplier'] 	= $rs->fields[11];
         $return[$i]['partno'] 		= $rs->fields[12];
         $return[$i]['partname'] 	= $rs->fields[13];
-        $return[$i]['qty'] 			= $rs->fields[14];
+        $return[$i]['qty'] 			= number_format($rs->fields[14], 2, '.', ',');
         $return[$i]['unit'] 		= $rs->fields[15];
-        $return[$i]['price'] 		= $rs->fields[16];
+        $return[$i]['price'] 		= number_format($rs->fields[16], 2, '.', ',');
         $return[$i]['currency'] 	= $rs->fields[17];
         $return[$i]['input_user']	= $rs->fields[18];
         $return[$i]['input_date']	= $rs->fields[19];

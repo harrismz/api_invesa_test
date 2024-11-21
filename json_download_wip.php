@@ -1,27 +1,19 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('max_execution_time', 3000);
+ini_set('memory_limit', '1024M');
+error_reporting(E_ALL);
 //	connect to database
 include 'conn.php';
 $db->setFetchMode(ADODB_FETCH_ASSOC);
-
 //	get paramater
-$accepted_param = ['periode', 'work_center', 'dic', 'kode_barang', 'nama_barang', 'jumlah', 'page', 'limit'];
-
-$start          = isset($_REQUEST["page"]) ? $_REQUEST["page"] : 0;
-$limit          = isset($_REQUEST["limit"]) ? $_REQUEST["limit"] : 20;
-$setLimit       = " limit $start,$limit ";
+$accepted_param = ['periode'];
 $where          = '';
-
 foreach ($_REQUEST as $key => $value) {
     if (!in_array($key, $accepted_param)) {
         continue;
     }
     if ($value == '') {
-        continue;
-    }
-    if ($key == 'page') {
-        continue;
-    }
-    if ($key == 'limit') {
         continue;
     }
     if ($where == '') {
@@ -30,10 +22,9 @@ foreach ($_REQUEST as $key => $value) {
         $where .= ' AND ';
     }
     if (in_array($key, $accepted_param)) {
-        if($key == 'periode'){
+        if ($key == 'periode') {
             $where .= " left($key,6) =  '{$value}' ";
-        }
-        else{
+        } else {
             $where .= " $key like  '%{$value}%' ";
         }
     }
@@ -48,15 +39,14 @@ $sql = "    SELECT (@rownumber := @rownumber + 1) AS no,
             `sd47`.`nama_barang`,
             `sd47`.`satuan`,
             `sd47`.`jumlah`
-        FROM `invesa`.`sd47` ";
-        
-$rs = $db->getAll($sql . $where . $setLimit);
-$totalcount = sizeOf($db->getAll($sql . $where));
+        FROM `invesa`.`sd47`";
+
+$query = $sql . $where;
+
+$rs = $db->getAll($query);
 
 $o = array(
     "success" => true,
-    "query" => $sql . $where . $setLimit,
-    "totalCount" => $totalcount,
     "rows" => $rs
 );
 

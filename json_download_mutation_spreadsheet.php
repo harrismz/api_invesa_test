@@ -5,11 +5,10 @@ ini_set('memory_limit', '1024M');
 error_reporting(E_ALL);
 //	connect to database
 include 'conn.php';
-$db->setFetchMode(ADODB_FETCH_ASSOC);
+$db->setFetchMode(ADODB_FETCH_NUM);
 //	get paramater
 $accepted_param = ['periode', 'gudang', 'kategori'];
-$where      = '';
-$where_sd51 = '';
+$where          = '';
 foreach ($_REQUEST as $key => $value) {
     if (!in_array($key, $accepted_param)) {
         continue;
@@ -28,11 +27,9 @@ foreach ($_REQUEST as $key => $value) {
     } else {
         $where .= ' AND ';
     }
-    $where_sd51 .= ' AND ';
     if (in_array($key, $accepted_param)) {
         if ($key == 'periode' || $key == 'gudang' || $key == 'kategori') {
             $where .= " muta.$key =  '{$value}' ";
-            $where_sd51 .= " final.$key = '{$value}' ";
             continue;
         }
         if ($key == 'stock_opname') {
@@ -44,11 +41,10 @@ foreach ($_REQUEST as $key => $value) {
             continue;
         }
         $where .= " muta.$key like  '%{$value}%' ";
-        $where_sd51 .= "final.$key like '%{$value}%' ";
     }
 }
 
-
+$db->execute("SET @rownumber = 0;");
 
 $sql = "    SELECT 
             muta.`kode_barang`,
@@ -89,7 +85,6 @@ $sql = "    SELECT
             muta.`keterangan`,
             muta.`kategori`,
             muta.`gudang`,
-            muta.`periode`,
             muta.`created_at`
         FROM 
             `invesa`.`monthly_mutation_report` muta
@@ -102,7 +97,7 @@ $sql = "    SELECT
             AND saldo_awal.gudang = muta.gudang 
             AND saldo_awal.kategori = muta.kategori
         LEFT JOIN 
-            (SELECT kode_barang, SUM(pemasukan) AS pemasukan, gudang, kategori, periode  
+            (SELECT kode_barang, SUM(pemasukan) AS pemasukan, gudang, kategori, periode, satuan
             FROM `invesa`.`monthly_mutation_report` 
             WHERE periode = '{$_REQUEST['periode']}' 
             GROUP BY kode_barang, gudang, kategori ) pemasukan
@@ -110,8 +105,9 @@ $sql = "    SELECT
              AND pemasukan.periode = muta.periode 
             AND pemasukan.gudang = muta.gudang 
             AND pemasukan.kategori = muta.kategori
+            AND pemasukan.satuan = muta.satuan
         LEFT JOIN 
-            (SELECT kode_barang, SUM(pengeluaran) AS pengeluaran , gudang, kategori, periode 
+            (SELECT kode_barang, SUM(pengeluaran) AS pengeluaran , gudang, kategori, periode, satuan
             FROM `invesa`.`monthly_mutation_report` 
             WHERE periode = '{$_REQUEST['periode']}' 
             GROUP BY kode_barang, gudang, kategori ) pengeluaran
@@ -119,6 +115,7 @@ $sql = "    SELECT
              AND pengeluaran.periode = muta.periode 
             AND pengeluaran.gudang = muta.gudang 
             AND pengeluaran.kategori = muta.kategori
+            AND pemasukan.satuan = muta.satuan
         LEFT JOIN 
             `invesa`.`stock_opname_report` so 
             ON so.gudang = muta.gudang 
@@ -136,7 +133,6 @@ $group_by = " GROUP BY
                 muta.`keterangan`, 
                 muta.`kategori`, 
                 muta.`gudang`, 
-                muta.`periode`,
                 muta.`created_at` ";
 
 // $query = "SELECT (@rownumber := @rownumber + 1) AS no, * FROM ( $sql $where $group_by ) AS mutation WHERE (saldo_awal <> 0 or pemasukan <> 0 or pengeluaran <> 0 )";
@@ -145,59 +141,40 @@ $group_by = " GROUP BY
 // if((isset($count[0]['total']) ? $count[0]['total'] : '0') >= 2500 ){
 // echo $sql . $where . $group_by;
 // die();
-$query = "SELECT (@rownumber := @rownumber + 1) AS no, 
-                mutation.kode_barang, mutation.nama_barang, mutation.satuan, 
-                mutation.saldo_awal, mutation.pemasukan, mutation.pengeluaran,
-                mutation.saldo_buku, mutation.penyesuaian, mutation.stock_opname,
-                mutation.selisih, mutation.keterangan, mutation.kategori, 
-                mutation.gudang, mutation.created_at
-            FROM ($sql $where $group_by ) AS mutation 
-            ";
-
-if (($_REQUEST['gudang'] == 'Gudang Finished Goods' and $_REQUEST['kategori'] == 'Hasil produksi')
-    or ($_REQUEST['gudang'] = 'Gudang Material' and $_REQUEST['kategori'] == 'Bahan baku')
-) {
-    $query = " SELECT (@rownumber := @rownumber + 1) AS no, final.* 
-               FROM
-               (select distinct
-                ifnull(git2.kode_barang ,sd51_summary.kode_barang) as kode_barang
-                , ifnull(git2.nama_barang,product_product.name_template) as nama_barang
-                , ifnull(git2.satuan, product_uom.name) as satuan
-                , ifnull(git2.saldo_awal, sd51_summary.saldo_awal) as saldo_awal
-                , COALESCE((git2.pemasukan),0) as pemasukan
-                , COALESCE((git2.pengeluaran),0) as pengeluaran
-                , ifnull(git2.saldo_buku, (sd51_summary.saldo_awal + COALESCE((git2.pemasukan), 0) - COALESCE((git2.pengeluaran), 0))) as saldo_buku 
-                , COALESCE((git2.penyesuaian), 0) as penyesuaian
-                , COALESCE((git2.stock_opname), 0) as stock_opname
-                , COALESCE((git2.selisih), 0) as selisih
-                , git2.keterangan
-                , IFNULL(git2.gudang, sd51_summary.gudang) AS gudang
-                , IFNULL(git2.kategori, sd51_summary.kategori) AS kategori
-                , IFNULL(git2.periode, sd51_summary.periode) AS periode
-                , git2.created_at, sd51_summary.kode_barang as sd51_kode_barang, sd51_summary.saldo_awal as sd51_saldo_awal
-                from
-                ( SELECT 
-                    mutation.kode_barang, mutation.nama_barang, mutation.satuan, 
-                    mutation.saldo_awal, mutation.pemasukan, mutation.pengeluaran,
-                    mutation.saldo_buku, mutation.penyesuaian, mutation.stock_opname,
-                    mutation.selisih, mutation.keterangan, mutation.kategori, 
-                    mutation.gudang, mutation.periode, mutation.created_at FROM ( $sql $where $group_by ) AS mutation 
-                    WHERE (saldo_awal <> 0 or pemasukan <> 0 or pengeluaran <> 0 ) ) as git2
-                right join sd51_summary on sd51_summary.periode = git2.periode 
-                                AND sd51_summary.gudang = '{$_REQUEST['gudang']}' 
-                                AND sd51_summary.kategori = '{$_REQUEST['kategori']}'
-                                and sd51_summary.kode_barang = git2.kode_barang
-                left join product_product on product_product.code = sd51_summary.kode_barang
-                left join product_uom on product_product.product_uom = product_uom.id
-                where sd51_summary.periode = '{$_REQUEST['periode']}' 
-                    and sd51_summary.gudang = '{$_REQUEST['gudang']}' 
-                    and sd51_summary.kategori = '{$_REQUEST['kategori']}'
-                ) as final
-                where (saldo_awal <> 0 or pemasukan <> 0 or pengeluaran <> 0 )
-                $where_sd51 ";
-}
+$query = "SELECT (@rownumber := @rownumber + 1) AS no
+                , mutation.kode_barang, mutation.nama_barang, mutation.satuan, mutation.saldo_awal
+                , mutation.pemasukan, mutation.pengeluaran, mutation.penyesuaian
+                , mutation.saldo_buku, mutation.stock_opname,mutation.selisih
+                , mutation.keterangan, mutation.kategori, mutation.gudang
+                , mutation.created_at
+            FROM ($sql $where $group_by ) AS mutation";
+        
     $db->execute("SET @rownumber = 0;");
     $rs = $db->getAll($query);
+// }
+// $rs = $db->getAll($query);
+// die();
+
+
+
+// var_dump($rs);
+// $limit = 2500; // Jumlah baris per batch
+// $offset = 0;  // Mulai dari baris pertama
+
+// $data = null;
+// do {
+//     $sql = "SELECT * FROM your_table LIMIT $limit OFFSET $offset";
+//     $result = $db->getAll($sql . $where );
+
+//     // Proses data
+//     while ($row = $result->fetch_assoc()) {
+//         // Tambahkan data ke file CSV atau hasil lainnya
+//         $data .= $row;
+//     }
+
+//     $offset += $limit; // Pindahkan ke batch berikutnya
+// } while ($result->num_rows > 0);
+
 
 $o = array(
     "success" => true,
