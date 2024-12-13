@@ -8,7 +8,7 @@ include 'conn.php';
 $db->setFetchMode(ADODB_FETCH_ASSOC);
 //	get paramater
 $accepted_param = ['periode'];
-$where          = '';
+$where          = ' WHERE jumlah > 0 ';
 foreach ($_REQUEST as $key => $value) {
     if (!in_array($key, $accepted_param)) {
         continue;

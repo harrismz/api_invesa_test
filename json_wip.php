@@ -9,7 +9,7 @@ $accepted_param = ['periode', 'work_center', 'dic', 'kode_barang', 'nama_barang'
 $start          = isset($_REQUEST["page"]) ? $_REQUEST["page"] : 0;
 $limit          = isset($_REQUEST["limit"]) ? $_REQUEST["limit"] : 20;
 $setLimit       = " limit $start,$limit ";
-$where          = '';
+$where          = ' WHERE jumlah > 0 ';
 
 foreach ($_REQUEST as $key => $value) {
     if (!in_array($key, $accepted_param)) {
