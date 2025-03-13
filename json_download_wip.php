@@ -23,7 +23,7 @@ foreach ($_REQUEST as $key => $value) {
     }
     if (in_array($key, $accepted_param)) {
         if ($key == 'periode') {
-            $where .= " left($key,6) =  '{$value}' ";
+            $where .= " $key =  '{$value}' ";
         } else {
             $where .= " $key like  '%{$value}%' ";
         }
