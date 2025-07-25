@@ -1,17 +1,18 @@
 <?php
 	//	connect to database
     include 'conn.php';
-	
+
 	//	get paramater
 	$valstdate	= trim(@$_REQUEST["valstdate"]);
 	$valendate	= trim(@$_REQUEST["valendate"]);
 	$valjnsdok	= trim(@$_REQUEST["valjnsdok"]);
 	$valnodok	= trim(@$_REQUEST["valnodok"]);
 	$valpartno	= trim(@$_REQUEST["valpartno"]);
-    $start 		= @$_REQUEST["page"];
-	$limit 		= @$_REQUEST["limit"];
+   
+    // Ensure $start and $limit are integers with default values
+    $start = isset($_REQUEST["page"]) && is_numeric($_REQUEST["page"]) ? (int)$_REQUEST["page"] : 0;
+    $limit = isset($_REQUEST["limit"]) && is_numeric($_REQUEST["limit"]) ? (int)$_REQUEST["limit"] : 10;
 	// $start		= ($page*$limit);
-	
 	//	execute query
     // $sql	= "call disp_input_sync($start,$limit, '{$valstdate}', '{$valendate}', '{$valjnsdok}', '{$valnodok}', '{$valpartno}')";
     $sql	= "call sync_disp_input($start,$limit, '{$valstdate}', '{$valendate}', '{$valjnsdok}', '{$valnodok}', '{$valpartno}');";
