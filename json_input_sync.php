@@ -19,7 +19,7 @@
     
     $rs		= $db->Execute($sql);
     
-    $totalcount = $rs->fields[21];
+    $totalcount = $rs->fields[22];
 	
 	//	array data
 	$return 	= array();
